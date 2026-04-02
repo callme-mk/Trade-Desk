@@ -19,12 +19,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import StreamingResponse
 from sqlalchemy import create_engine, Column, String, Float, Integer, DateTime, Boolean, Text
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker, Session, declarative_base
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime, timedelta
-import hashlib, jwt, os, csv, io, uuid
+from datetime import datetime, timedelta, timezone
+import hashlib
+import jwt
+import os
+import csv
+import io
+import uuid
 
 # ── CONFIG ───────────────────────────────────────────────
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./tradedesk.db")
@@ -48,7 +52,7 @@ class UserDB(Base):
     username   = Column(String, unique=True, index=True, nullable=False)
     name       = Column(String, nullable=False)
     pass_hash  = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     mt5_login  = Column(String, nullable=True)    # MT5 account number
     mt5_server = Column(String, nullable=True)    # MT5 broker server
 
@@ -79,7 +83,7 @@ class TradeDB(Base):
     risk          = Column(Float, nullable=True)
     r_multiple    = Column(Float, nullable=True)
     is_manual     = Column(Boolean, default=False)   # true = typed by hand
-    created_at    = Column(DateTime, default=datetime.utcnow)
+    created_at    = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 Base.metadata.create_all(bind=engine)
@@ -111,7 +115,7 @@ def hash_password(password: str) -> str:
 
 
 def make_token(user_id: str) -> str:
-    expire = datetime.utcnow() + timedelta(days=TOKEN_EXPIRE)
+    expire = datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRE)
     return jwt.encode({"sub": user_id, "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -146,8 +150,10 @@ def detect_session(dt: Optional[datetime]) -> str:
 
 
 def detect_result(profit: float) -> str:
-    if profit > 0.5:   return "WIN"
-    if profit < -0.5:  return "LOSS"
+    if profit > 0.5:   
+        return "WIN"
+    if profit < -0.5:  
+        return "LOSS"
     return "BE"
 
 
@@ -345,12 +351,16 @@ def update_trade(
     if not trade:
         raise HTTPException(404, "Trade not found")
 
-    if body.notes   is not None: trade.notes   = body.notes
-    if body.emotion is not None: trade.emotion = body.emotion
-    if body.setup   is not None: trade.setup   = body.setup
-    if body.result  is not None: trade.result  = body.result
-    if body.risk    is not None:
-        trade.risk       = body.risk
+    if body.notes is not None: 
+        trade.notes = body.notes
+    if body.emotion is not None: 
+        trade.emotion = body.emotion
+    if body.setup is not None: 
+        trade.setup = body.setup
+    if body.result is not None: 
+        trade.result = body.result
+    if body.risk is not None:
+        trade.risk = body.risk
         trade.r_multiple = round(trade.profit / body.risk, 2) if body.risk != 0 else None
 
     db.commit()
@@ -470,37 +480,45 @@ def get_stats(
 
     # Drawdown
     eq = 0; peak = 0; dd = 0
-    for t in sorted(trades, key=lambda x: x.open_time or datetime.utcnow()):
+    for t in sorted(trades, key=lambda x: x.open_time or datetime.now(timezone.utc)):
         eq += t.profit
-        if eq > peak: peak = eq
-        if peak - eq > dd: dd = peak - eq
+        if eq > peak: 
+            peak = eq
+        if peak - eq > dd: 
+            dd = peak - eq
 
     # By setup
     by_setup = {}
     for t in trades:
         k = t.setup or "Unknown"
-        if k not in by_setup: by_setup[k] = {"wins": 0, "total": 0, "pnl": 0}
+        if k not in by_setup: 
+            by_setup[k] = {"wins": 0, "total": 0, "pnl": 0}
         by_setup[k]["total"] += 1
         by_setup[k]["pnl"]   += t.profit
-        if t.result == "WIN": by_setup[k]["wins"] += 1
+        if t.result == "WIN": 
+            by_setup[k]["wins"] += 1
 
     # By session
     by_session = {}
     for t in trades:
         k = t.session or "Unknown"
-        if k not in by_session: by_session[k] = {"wins": 0, "total": 0, "pnl": 0}
+        if k not in by_session: 
+            by_session[k] = {"wins": 0, "total": 0, "pnl": 0}
         by_session[k]["total"] += 1
         by_session[k]["pnl"]   += t.profit
-        if t.result == "WIN": by_session[k]["wins"] += 1
+        if t.result == "WIN": 
+            by_session[k]["wins"] += 1
 
     # By symbol
     by_symbol = {}
     for t in trades:
         k = t.symbol
-        if k not in by_symbol: by_symbol[k] = {"wins": 0, "total": 0, "pnl": 0}
+        if k not in by_symbol: 
+            by_symbol[k] = {"wins": 0, "total": 0, "pnl": 0}
         by_symbol[k]["total"] += 1
         by_symbol[k]["pnl"]   += t.profit
-        if t.result == "WIN": by_symbol[k]["wins"] += 1
+        if t.result == "WIN": 
+            by_symbol[k]["wins"] += 1
 
     # Day of week
     dow = [0.0] * 7
@@ -561,7 +579,7 @@ def export_trades(
         ])
 
     output.seek(0)
-    filename = f"tradedesk_{user.username}_{datetime.utcnow().strftime('%Y%m%d')}.csv"
+    filename = f"tradedesk_{user.username}_{datetime.now(timezone.utc).strftime('%Y%m%d')}.csv"
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",
