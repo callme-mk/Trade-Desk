@@ -30,13 +30,13 @@ except ImportError:
 # ═══════════════════════════════════════════════
 #  YOUR SETTINGS
 # ═══════════════════════════════════════════════
-API_URL      = "https://your-tradedesk-backend.railway.app"  # your deployed backend URL
-USERNAME     = "your_username"      # your TradeDesk username
-PASSWORD     = "your_password"      # your TradeDesk password
+API_URL      = "https://trade-desk-production.up.railway.app"  # your deployed backend URL
+USERNAME     = "callme-mk"      # your TradeDesk username
+PASSWORD     = "(mk-21)"      # your TradeDesk password
 
-MT5_LOGIN    = 0                    # your MT5 account number (0 = use current)
-MT5_PASSWORD = ""                   # leave empty if already logged in
-MT5_SERVER   = ""                   # leave empty if already logged in
+MT5_LOGIN    = 20202544                    # your MT5 account number (0 = use current)
+MT5_PASSWORD = "(iNVICTUS-2025)"                   # leave empty if already logged in
+MT5_SERVER   = "WindsorBrokers1-Demo"                   # leave empty if already logged in
 
 SYNC_EVERY   = 60                   # seconds between syncs
 SYNC_DAYS    = 365                  # how many days back to pull trades
