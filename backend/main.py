@@ -59,6 +59,7 @@ class UserDB(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     mt5_login  = Column(String, nullable=True)
     mt5_server = Column(String, nullable=True)
+    starting_balance = Column(Float,nullable=True,default=0)
 
 
 class TradeDB(Base):
@@ -212,6 +213,7 @@ def user_dict(u: UserDB) -> dict:
         "created_at": str(u.created_at),
         "mt5_login":  u.mt5_login,
         "mt5_server": u.mt5_server,
+        
     }
 
 
