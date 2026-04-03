@@ -31,6 +31,9 @@ class UserDB(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     mt5_login  = Column(String, nullable=True)
     mt5_server = Column(String, nullable=True)
+    # --- NEW COLUMNS FOR ACCOUNT DATA ---
+    balance    = Column(Float, nullable=True, default=0.0)
+    equity     = Column(Float, nullable=True, default=0.0)
 
 class TradeDB(Base):
     __tablename__ = "trades"
@@ -148,6 +151,7 @@ def user_out(u: UserDB) -> dict:
         "id": u.id, "username": u.username, "name": u.full_name,
         "created_at": str(u.created_at),
         "mt5_login": u.mt5_login, "mt5_server": u.mt5_server,
+        "balance": u.balance, "equity": u.equity # Added export
     }
 
 class RegisterIn(BaseModel):
@@ -203,6 +207,9 @@ class MT5TradeIn(BaseModel):
 
 class SyncIn(BaseModel):
     trades: List[MT5TradeIn]
+    # --- NEW FIELDS FOR ACCOUNT DATA ---
+    balance: Optional[float] = None
+    equity: Optional[float] = None
 
 @app.get("/")
 def root():
@@ -245,6 +252,14 @@ def login(body: LoginIn, db: Session = Depends(get_db)):
 @app.get("/auth/me")
 def me(user: UserDB = Depends(get_user)):
     return user_out(user)
+
+# --- NEW ACCOUNT ENDPOINT ---
+@app.get("/account")
+def get_account(user: UserDB = Depends(get_user)):
+    return {
+        "balance": user.balance or 0.0,
+        "equity": user.equity or 0.0
+    }
 
 @app.get("/trades")
 def get_trades(user: UserDB = Depends(get_user), db: Session = Depends(get_db)):
@@ -300,6 +315,13 @@ def delete_trade(tid: str, user: UserDB = Depends(get_user), db: Session = Depen
 
 @app.post("/trades/sync")
 def sync_trades(body: SyncIn, user: UserDB = Depends(get_user), db: Session = Depends(get_db)):
+    # --- UPDATE ACCOUNT INFO FIRST ---
+    if body.balance is not None:
+        user.balance = body.balance
+    if body.equity is not None:
+        user.equity = body.equity
+    db.commit()
+
     added = updated = 0
     for t in body.trades:
         open_dt  = parse_dt(t.open_time)
@@ -326,7 +348,7 @@ def sync_trades(body: SyncIn, user: UserDB = Depends(get_user), db: Session = De
             ))
             db.commit()
             added+=1
-    return {"message": "Sync complete", "added": added, "updated": updated}
+    return {"message": "Sync complete", "added": added, "updated": updated, "balance": user.balance, "equity": user.equity}
 
 @app.get("/stats")
 def get_stats(user: UserDB = Depends(get_user), db: Session = Depends(get_db)):
