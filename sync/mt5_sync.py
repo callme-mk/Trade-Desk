@@ -2,22 +2,11 @@
 TradeDesk MT5 Sync Script
 ==========================
 Runs on YOUR PC where MT5 is installed.
-Connects to MT5, pulls closed trades,
+Connects to MT5, pulls closed trades and live balance,
 sends them to your TradeDesk backend automatically.
-
-SETUP:
-  1. pip install MetaTrader5 requests
-  2. Fill in your settings below
-  3. Make sure MT5 is open and logged in
-  4. Run: python mt5_sync.py
-  5. Leave it running — syncs every 60 seconds
-
-Every trade you close in MT5 will appear in
-your TradeDesk journal within 1 minute.
 """
 
 import time
-import json
 import requests
 from datetime import datetime, timedelta
 
@@ -31,8 +20,8 @@ except ImportError:
 #  YOUR SETTINGS
 # ═══════════════════════════════════════════════
 API_URL      = "https://trade-desk-production.up.railway.app"  # your deployed backend URL
-USERNAME     = "callme-mk"      # your TradeDesk username
-PASSWORD     = "(mk-21)"      # your TradeDesk password
+USERNAME     = "mustafa"      # your TradeDesk username
+PASSWORD     = "mk21"      # your TradeDesk password
 
 MT5_LOGIN    = 20202544                    # your MT5 account number (0 = use current)
 MT5_PASSWORD = "(iNVICTUS-2025)"                   # leave empty if already logged in
@@ -83,16 +72,13 @@ def pull_closed_trades(days_back=365):
         return []
 
     # MT5 deals come in pairs: IN (open) and OUT (close)
-    # We only want OUT deals (actual closed trades)
     out_deals = [d for d in deals if d.entry == mt5.DEAL_ENTRY_OUT]
 
     trades = []
     for deal in out_deals:
-        # Skip deposit/withdrawal/balance ops
         if deal.type not in [mt5.DEAL_TYPE_BUY, mt5.DEAL_TYPE_SELL]:
             continue
 
-        # Find matching open deal by position_id
         position_id = deal.position_id
         in_deals = [d for d in deals
                     if d.position_id == position_id
@@ -102,11 +88,8 @@ def pull_closed_trades(days_back=365):
             continue
 
         open_deal = in_deals[0]
+        direction = "BUY" if open_deal.type == mt5.DEAL_TYPE_BUY else "SELL"
 
-        # Get position info for SL/TP
-        direction = "BUY"  if open_deal.type == mt5.DEAL_TYPE_BUY else "SELL"
-
-        # Try to get SL/TP from position history
         sl = 0.0
         tp = 0.0
         try:
@@ -140,14 +123,18 @@ def pull_closed_trades(days_back=365):
     return trades
 
 
-def sync(token: str, trades: list) -> dict:
-    """Send trades to TradeDesk backend."""
-    if not trades:
-        return {"added": 0, "updated": 0}
+def sync(token: str, trades: list, balance: float, equity: float) -> dict:
+    """Send trades and account info to TradeDesk backend."""
+    # Modified to allow sending data even if trades list is empty
+    payload = {
+        "trades": trades,
+        "balance": balance,
+        "equity": equity
+    }
 
     resp = requests.post(
         f"{API_URL}/trades/sync",
-        json={"trades": trades},
+        json=payload,
         headers={"Authorization": f"Bearer {token}"},
         timeout=30
     )
@@ -168,12 +155,10 @@ def main():
     print(f"  Pulling last {SYNC_DAYS} days of trades")
     print()
 
-    # Connect MT5
     if not connect_mt5():
         print("Failed to connect to MT5. Is it open?")
         return
 
-    # Login to API
     print("Logging into TradeDesk API...")
     token = get_token()
     if not token:
@@ -187,20 +172,29 @@ def main():
         try:
             now = datetime.now().strftime("%H:%M:%S")
 
-            # Refresh token daily
             if datetime.now() > token_refresh:
                 token = get_token()
                 token_refresh = datetime.now() + timedelta(days=1)
 
-            # Pull from MT5
-            trades = pull_closed_trades(SYNC_DAYS)
-            print(f"[{now}] Found {len(trades)} closed trades in MT5")
+            # Pull current account info
+            account_info = mt5.account_info()
+            balance = round(account_info.balance, 2) if account_info else None
+            equity = round(account_info.equity, 2) if account_info else None
 
-            # Send to backend
+            # Pull trades
+            trades = pull_closed_trades(SYNC_DAYS)
+            
+            # Print status depending on if there are trades or just a balance update
             if trades:
-                result = sync(token, trades)
-                if result:
-                    print(f"[{now}] Synced — Added: {result.get('added',0)} | Updated: {result.get('updated',0)}")
+                print(f"[{now}] Found {len(trades)} trades | Balance: {balance} | Equity: {equity}")
+            else:
+                print(f"[{now}] Syncing Balance: {balance} | Equity: {equity}")
+
+            # Send to backend (syncs balance even if trades is empty)
+            if balance is not None:
+                result = sync(token, trades, balance, equity)
+                if result and trades:
+                    print(f"[{now}] Synced Trades — Added: {result.get('added',0)} | Updated: {result.get('updated',0)}")
 
             time.sleep(SYNC_EVERY)
 
@@ -211,7 +205,6 @@ def main():
         except Exception as e:
             print(f"[{datetime.now().strftime('%H:%M:%S')}] Error: {e}")
             time.sleep(10)
-
 
 if __name__ == "__main__":
     main()
