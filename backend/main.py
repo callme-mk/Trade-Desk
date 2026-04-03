@@ -12,10 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import StreamingResponse
 from sqlalchemy import create_engine, Column, String, Float, Integer, DateTime, Boolean, Text, text
-try:
-    from sqlalchemy.orm import declarative_base
-except ImportError:
-    from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel
 from typing import Optional, List
@@ -297,18 +294,18 @@ def me(user: UserDB = Depends(verify_token)):
 class TradeBody(BaseModel):
     symbol:      str
     direction:   str
+    open_time:   Optional[str]  = None
+    close_time:  Optional[str]  = None
+    open_price:  Optional[float]= None
+    close_price: Optional[float]= None
+    sl:          Optional[float]= None
+    tp:          Optional[float]= None
+    volume:      Optional[float]= None
     profit:      float
-    open_time:   Optional[str]   = None
-    close_time:  Optional[str]   = None
-    open_price:  Optional[float] = None
-    close_price: Optional[float] = None
-    sl:          Optional[float] = None
-    tp:          Optional[float] = None
-    volume:      Optional[float] = None
-    setup:       Optional[str]   = None
-    notes:       Optional[str]   = None
-    emotion:     Optional[int]   = None
-    risk:        Optional[float] = None
+    setup:       Optional[str]  = None
+    notes:       Optional[str]  = None
+    emotion:     Optional[int]  = None
+    risk:        Optional[float]= None
 
 
 class UpdateBody(BaseModel):
