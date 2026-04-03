@@ -295,6 +295,17 @@ canvas{width:100%;display:block;}
 .titlebar-actions .sync-badge{display:none;}
 .bottom-nav{display:flex;}
 .content{padding-bottom:72px;}
+
+/* --- Responsiveness fix for stacked icons and text --- */
+.bn-btn{
+  padding: 6px 0; /* Add vertical padding for breathing room */
+  justify-content: space-evenly; /* Spread elements vertically */
+  gap: 0; /* Clear previous gap, use justify-content and padding instead */
+}
+.bn-icon{
+  line-height: normal; /* Fix for text standing on icons */
+  margin-bottom: 2px; /* Small margin to separate from text below */
+}
 }
 @media(max-width:600px){
 .dash-grid{grid-template-columns:1fr 1fr;}
