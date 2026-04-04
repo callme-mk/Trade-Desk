@@ -76,7 +76,7 @@ class DailyNoteDB(Base):
     id = Column(String,primary_key=True,default=lambda: str(uuid.uuid4()))
     user_id = Column(String,index=True)
     date = Column(String,nullable=False)
-    content = Coulmn(Text,nullable=True)
+    content = Column(Text,nullable=True)
     mood=Column(Integer,nullable=True)
 
 Base.metadata.create_all(bind=engine)
