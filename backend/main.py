@@ -34,7 +34,7 @@ class UserDB(Base):
     # --- NEW COLUMNS FOR ACCOUNT DATA ---
     balance    = Column(Float, nullable=True, default=0.0)
     equity     = Column(Float, nullable=True, default=0.0)
-
+    monthly_goal = Column(Float,nullable=True)
 class TradeDB(Base):
     __tablename__ = "trades"
     id           = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -64,6 +64,20 @@ class TradeDB(Base):
     screenshots  = Column(Text,     nullable=True)
     reason       = Column(Text,     nullable=True)
     created_at   = Column(DateTime, default=datetime.utcnow)
+    confidence   =  Column(Integer,nullable=True)
+    tags =   Column(String,nullable=True)
+    planned_rr = Column(Float,nullable=True)
+    planned_entry = Column(Float,nullable=True)
+    planned_tp = Column(Float,nullable=True)
+    planned_sl = Column(Float,nullable=True)
+
+class DailyNoteDB(Base):
+    __tablename__ = "daily_note"
+    id = Column(String,primary_key=True,default=lambda: str(uuid.uuid4()))
+    user_id = Column(String,index=True)
+    date = Column(String,nullable=False)
+    content = Coulmn(Text,nullable=True)
+    mood=Column(Integer,nullable=True)
 
 Base.metadata.create_all(bind=engine)
 
